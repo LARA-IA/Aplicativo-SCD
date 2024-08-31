@@ -5,9 +5,11 @@
  * @format
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type {PropsWithChildren} from 'react';
 import {
+  Image,
+  PermissionsAndroid,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -16,6 +18,7 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
+import { loadTensorflowModel, useTensorflowModel } from 'react-native-fast-tflite';
 
 import {
   Colors,
@@ -55,48 +58,85 @@ function Section({children, title}: SectionProps): React.JSX.Element {
   );
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+import { Camera, useCameraDevice, useCameraFormat, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
+import { useResizePlugin } from 'vision-camera-resize-plugin';
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+function App(): React.JSX.Element {
+  const [permission,setPermission] = useState(false);
+  const requestCameraPermission = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title: 'Cool Photo App Camera Permission',
+          message:
+            'Cool Photo App needs access to your camera ' +
+            'so you can take awesome pictures.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('You can use the camera');
+        setPermission(true);
+      } else {
+        console.log('Camera permission denied');
+      }
+    } catch (err) {
+      console.warn(err);
+    }
   };
 
+  useEffect(()=>{
+    async function request() {
+      await requestCameraPermission();
+    }
+    request();
+  },[])
+
+
+
+  let m = useTensorflowModel(require("./assets/model_v1.tflite"));
+  const model =  m.state === "loaded" ? m.model : null
+  const device: any  = useCameraDevice("back");
+  const {resize} = useResizePlugin();
+
+  const frameProcessor = useFrameProcessor((frame) => {
+    'worklet'
+  const resized = resize(frame, {
+      scale: {
+        width: 224,
+        height: 224,
+      },
+      pixelFormat: 'rgb',
+      dataType: 'uint8',
+    }); 
+    try{
+      const outputs = model.runSync([resized])
+      console.log(outputs);
+    }catch(e){
+      console.log(e);
+    }
+    
+
+  },[model]);
+
+  
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <View>
+      <Text>PREDICT: PLACEHOLDER</Text>
+      {permission ? <Camera  frameProcessor={frameProcessor}  style={[styles.camera,StyleSheet.absoluteFill]} device={device} isActive={true}/> : <Text>forneça</Text>}
+      {model != null ? <Text>Carregado status {m.state}</Text>: <Text>Não carregado</Text>}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  camera: {
+    marginTop:40,
+    height: 400
+  },
   sectionContainer: {
     marginTop: 32,
     paddingHorizontal: 24,
