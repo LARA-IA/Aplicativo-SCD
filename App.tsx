@@ -97,23 +97,27 @@ function App(): React.JSX.Element {
 
 
 
-  let m = useTensorflowModel(require("./assets/model_v1.tflite"));
+  let m = useTensorflowModel(require("./assets/skin_cancer_best_model.tflite"));
   const model =  m.state === "loaded" ? m.model : null
   const device: any  = useCameraDevice("back");
   const {resize} = useResizePlugin();
+  
 
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet'
-  const resized = resize(frame, {
+    
+   let resized = resize(frame, {
       scale: {
         width: 224,
         height: 224,
       },
       pixelFormat: 'rgb',
-      dataType: 'uint8',
-    }); 
+      dataType: 'float32',
+    });  
+    
+    
     try{
-      const outputs = model.runSync([resized])
+      const outputs = model?.runSync([resized])
       console.log(outputs);
     }catch(e){
       console.log(e);
@@ -122,19 +126,20 @@ function App(): React.JSX.Element {
 
   },[model]);
 
-  
+
   return (
     <View>
       <Text>PREDICT: PLACEHOLDER</Text>
-      {permission ? <Camera  frameProcessor={frameProcessor}  style={[styles.camera,StyleSheet.absoluteFill]} device={device} isActive={true}/> : <Text>forneça</Text>}
-      {model != null ? <Text>Carregado status {m.state}</Text>: <Text>Não carregado</Text>}
+      {permission ? <Camera  frameProcessor={frameProcessor}  style={[styles.camera,StyleSheet.absoluteFill]} device={device} isActive={true}/> : <Text>forneça</Text>}  
+
+      
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   camera: {
-    marginTop:40,
+    marginTop:50,
     height: 400
   },
   sectionContainer: {
