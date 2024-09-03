@@ -1,64 +1,16 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
 import React, { useEffect, useState } from 'react';
-import type {PropsWithChildren} from 'react';
 import {
-  Image,
+  Button,
   PermissionsAndroid,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
-import { loadTensorflowModel, useTensorflowModel } from 'react-native-fast-tflite';
+import { useTensorflowModel } from 'react-native-fast-tflite';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-import { Camera, useCameraDevice, useCameraFormat, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useFrameProcessor } from 'react-native-vision-camera';
+import { useRunOnJS } from 'react-native-worklets-core';
 import { useResizePlugin } from 'vision-camera-resize-plugin';
 
 function App(): React.JSX.Element {
@@ -101,8 +53,12 @@ function App(): React.JSX.Element {
   const model =  m.state === "loaded" ? m.model : null
   const device: any  = useCameraDevice("back");
   const {resize} = useResizePlugin();
-  
+  let [out,setOuta] = useState({label:"scanning",prob:1});
 
+  const handleResultado = useRunOnJS((resultado) => {
+    setOuta(resultado);
+    
+  },[]);
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet'
     
@@ -115,10 +71,24 @@ function App(): React.JSX.Element {
       dataType: 'float32',
     });  
     
-    
+    const lables = ["Bowen's disease"," Basal cell carcinoma","benign keratosis-like lesion", "dermatofibroma","melanoma","melanocytic nevi","vascular lesion"]
     try{
       const outputs = model?.runSync([resized])
-      console.log(outputs);
+      //console.log(outputs)
+      let biggestProb : any= -1;
+      let number: any = 0;
+      let values = outputs?.at(0);
+      let label : string = "";
+      for(let index=0;index<=6;index++){
+        number = values?.at(index);
+        if(number > biggestProb){
+          biggestProb = number;
+          label = lables[index];
+        }
+      }
+      let results = {prob: biggestProb,label:[label]}
+      handleResultado(results);
+      
     }catch(e){
       console.log(e);
     }
@@ -129,7 +99,7 @@ function App(): React.JSX.Element {
 
   return (
     <View>
-      <Text>PREDICT: PLACEHOLDER</Text>
+      <Text>{`PREDICT: ${out.label} ${out.prob}`}</Text>
       {permission ? <Camera  frameProcessor={frameProcessor}  style={[styles.camera,StyleSheet.absoluteFill]} device={device} isActive={true}/> : <Text>forneça</Text>}  
 
       
