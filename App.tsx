@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Dimensions
 } from 'react-native';
 import { useTensorflowModel } from 'react-native-fast-tflite';
 
@@ -54,9 +55,19 @@ function App(): React.JSX.Element {
   const device: any  = useCameraDevice("back");
   const {resize} = useResizePlugin();
   let [out,setOuta] = useState({label:"scanning",prob:1});
+  const [color,setColor] = useState("red");
 
+  const lesionColors = new Map();
+  lesionColors.set("Melanocytic Nevi", "#90EE90");
+  lesionColors.set("Dermatofibroma", "#FFFFE0");
+  lesionColors.set("Benign Keratosis-Like Lesion", "#FFDAB9");
+  lesionColors.set("Vascular Lesion", "#ADD8E6");
+  lesionColors.set("Basal Cell Carcinoma", "#FFC0CB");
+  lesionColors.set("Bowen's Disease", "#FF6347");
+  lesionColors.set("Melanoma", "#000000");
   const handleResultado = useRunOnJS((resultado) => {
     setOuta(resultado);
+    setColor(lesionColors.get(resultado.label[0]));
     
   },[]);
   const frameProcessor = useFrameProcessor((frame) => {
@@ -71,7 +82,7 @@ function App(): React.JSX.Element {
       dataType: 'float32',
     });  
     
-    const lables = ["Bowen's disease"," Basal cell carcinoma","benign keratosis-like lesion", "dermatofibroma","melanoma","melanocytic nevi","vascular lesion"]
+    const lables = ["Bowen's Disease","Basal Cell Carcinoma","Benign Keratosis-Like Lesion", "Dermatofibroma","Melanoma","Melanocytic Nevi","Vascular Lesion"]
     try{
       const outputs = model?.runSync([resized])
       //console.log(outputs)
@@ -95,39 +106,43 @@ function App(): React.JSX.Element {
     
 
   },[model]);
-
-
+  
+  
   return (
-    <View>
-      <Text>{`PREDICT: ${out.label} ${out.prob}`}</Text>
-      {permission ? <Camera  frameProcessor={frameProcessor}  style={[styles.camera,StyleSheet.absoluteFill]} device={device} isActive={true}/> : <Text>forneça</Text>}  
-
+    <View style={styles.container}>
+      <Text style={[styles.text,{backgroundColor: color}]}>{`${out.label} ${out.prob.toFixed(3)}`}</Text>
+      <View style={[styles.cameraContainer,{borderColor: color}]}>
+        {permission ? <Camera  frameProcessor={frameProcessor}  style={[styles.camera]} device={device} isActive={true}/> : <Text>forneça</Text>}  
+      </View>
+      
       
     </View>
   );
 }
 
+
+const height = Dimensions.get('window').height;
+const width = Dimensions.get('window').width;
 const styles = StyleSheet.create({
+  container:{
+    flex:1
+  },
   camera: {
-    marginTop:50,
-    height: 400
+    flex: 1
   },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  cameraContainer: {
+    borderWidth: 5,
+    flex:1
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
+  text: {
+    height: height*0.05,
+    fontSize:22,
+    color: 'white',
+  }
 });
+
+
+
+
 
 export default App;
